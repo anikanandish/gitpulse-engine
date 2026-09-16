@@ -26,6 +26,9 @@ An event-driven telemetry and analytics receiver designed to ingest, process, an
 
 ---
 
+## Future implimenation
+
+
 ## Getting Started
 
 ### Prerequisites
