@@ -2,6 +2,7 @@
 
 An event-driven telemetry and analytics receiver designed to ingest, process, and track real-time GitHub repository events and workflow metrics.
 
+A real-time GitHub webhook receiver and telemetry pipeline built with Python and FastAPI.
 ---
 
 ## Overview
