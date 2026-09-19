@@ -4,7 +4,14 @@ app = FastAPI(title="GitPulse Webhook Engine")
 
 @app.get("/")
 def home():
-    return {"status": "GitPulse server is live!"}
+    return {
+        "app": "GitPulse Engine",
+        "status": "healthy",
+        "version": "0.1.0",
+        "endpoints": {
+            "webhook": "/webhook"
+        }
+    }
 
 @app.post("/webhook")
 async def receive_github_webhook(request: Request):
