@@ -43,3 +43,6 @@ A real-time GitHub webhook receiver and telemetry pipeline built with Python and
    ```bash
    git clone [https://github.com/anikanandish/gitpulse-engine.git](https://github.com/anikanandish/gitpulse-engine.git)
    cd gitpulse-engine
+
+
+## Architecture Flow
