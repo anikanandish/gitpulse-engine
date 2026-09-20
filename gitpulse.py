@@ -23,6 +23,11 @@ def home():
 
 @app.post("/webhook")
 async def receive_github_webhook(request: Request):
+
+   
+    github_signature = request.headers.get("X-Hub-Signature-256")
+    if not github_signature:
+       logging.warning("Received webhook without X-Hub-Signature-256 header")
     payload = await request.json()
     event_type = request.headers.get("X-GitHub-Event", "unknown")
     
