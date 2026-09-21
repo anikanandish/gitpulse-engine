@@ -25,7 +25,8 @@ def home():
         "version": "0.1.0",
         "endpoints": {
             "webhook": "/webhook",
-            "metrics": "/metrics"
+            "metrics": "/metrics",
+            "reset_metrics": "/metrics/reset"
         }
     }
 
@@ -35,6 +36,15 @@ def get_metrics():
         "telemetry": telemetry_data,
         "status": "recording"
     }
+
+# --- METRICS RESET ROUTE ---
+@app.post("/metrics/reset")
+def reset_metrics():
+    telemetry_data["total_events"] = 0
+    telemetry_data["pushes"] = 0
+    telemetry_data["pull_requests"] = 0
+    logging.info("Telemetry metrics reset to zero")
+    return {"message": "Telemetry metrics reset successfully", "telemetry": telemetry_data}
 
 @app.post("/webhook")
 async def receive_github_webhook(request: Request):
