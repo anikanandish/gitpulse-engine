@@ -5,6 +5,13 @@ An event-driven telemetry and analytics receiver designed to ingest, process, an
 A real-time GitHub webhook receiver and telemetry pipeline built with Python and FastAPI.
 ---
 
+
+## API Endpoints
+
+- `GET /` — Engine health status, version, and route index
+- `GET /metrics` — Live in-memory telemetry aggregates (total events, pushes, PRs)
+- `POST /webhook` — GitHub webhook payload ingestion listener
+
 ## Overview
 
 **GitPulse Engine** provides automated repository telemetry by capturing live GitHub Webhook events. It acts as the core ingestion pipeline to track commit frequency, pull request cycle times, and build health metrics for continuous integration monitoring.
