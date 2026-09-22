@@ -1,4 +1,6 @@
+from datetime import datetime
 import logging
+from time import timezone
 from fastapi import FastAPI, Request
 
 # Configure file logging
@@ -34,7 +36,8 @@ def home():
 def get_metrics():
     return {
         "telemetry": telemetry_data,
-        "status": "recording"
+        "status": "recording",
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 # --- METRICS RESET ROUTE ---
