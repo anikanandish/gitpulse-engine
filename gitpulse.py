@@ -16,7 +16,8 @@ app = FastAPI(title="GitPulse Webhook Engine")
 telemetry_data = {
     "total_events": 0,
     "pushes": 0,
-    "pull_requests": 0
+    "pull_requests": 0,
+    "repositories": {}
 }
 
 @app.get("/")
@@ -74,6 +75,9 @@ async def receive_github_webhook(request: Request):
         repo = payload.get("repository", {}).get("name", "Unknown")
         commits = payload.get("commits", [])
         commit_count = len(commits)
+        if repo not in telemetry_data["repositories"]:
+            telemetry_data["repositories"][repo] = {"pushes": 0, "pull_requests": 0}
+        telemetry_data["repositories"][repo]["pushes"] += 1
         distinct_authors = len({c.get("author", {}).get("username") for c in commits if c.get("author", {}).get("username")})
         
         logging.info(f"Push by {pusher} in {repo} with {commit_count} commits across {distinct_authors} authors")
@@ -85,6 +89,10 @@ async def receive_github_webhook(request: Request):
             
     elif event_type == "pull_request":
         telemetry_data["pull_requests"] += 1
+        repo = payload.get("repository", {}).get("name", "Unknown")
+        if repo not in telemetry_data["repositories"]:
+            telemetry_data["repositories"][repo] = {"pushes": 0, "pull_requests": 0}
+        telemetry_data["repositories"][repo]["pull_requests"] += 1
         action = payload.get("action", "")
         pr_title = payload.get("pull_request", {}).get("title", "")
         author = payload.get("sender", {}).get("login", "")
