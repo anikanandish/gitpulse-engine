@@ -101,4 +101,8 @@ async def receive_github_webhook(request: Request):
         print(f" PR Title: {pr_title}")
         print(f" Author: {author}")
         
-    return {"message": "Event received successfully!"}
+    return {
+        "status": "success",
+        "event": event_type,
+        "recorded_events_total": telemetry_data["total_events"]
+    }
