@@ -1,0 +1,13 @@
+{
+  "action": "opened",
+  "sender": {
+    "login": "dev-reviewer"
+  },
+  "repository": {
+    "name": "gitpulse-engine"
+  },
+  "pull_request": {
+    "title": "feat: integrate telemetry health monitoring",
+    "number": 1
+  }
+}
