@@ -25,7 +25,18 @@ A real-time GitHub webhook receiver and telemetry pipeline built with Python and
 - **Event Dispatching**: Extracts commit logs, author metadata, repository details, and PR states for downstream database aggregation.
 
 ---
+## Local Testing
 
+To simulate GitHub events locally without configuring an external tunnel:
+
+```powershell
+# In terminal 1: Start the engine
+uvicorn gitpulse:app --reload --port 8000
+
+# In terminal 2: Trigger a simulated push event
+python test_webhook.py
+
+---
 ## Tech Stack
 
 - **Backend**: Python, FastAPI, Uvicorn
