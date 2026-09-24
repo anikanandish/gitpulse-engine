@@ -1,5 +1,9 @@
 # GitPulse Engine 
 
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688)
+![License-MIT](https://img.shields.io/badge/License-MIT-yellow)
+
 > A lightweight, event-driven GitHub telemetry receiver and metric aggregator built with FastAPI.
 
 An event-driven telemetry and analytics receiver designed to ingest, process, and track real-time GitHub repository events and workflow metrics.
