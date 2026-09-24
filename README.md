@@ -69,4 +69,14 @@ python test_webhook.py
    cd gitpulse-engine
 
 
+---
+
+## Roadmap
+
+- [x] In-memory telemetry counter & metrics endpoint
+- [x] Local mock event test runner
+- [ ] HMAC SHA-256 signature verification for webhook payloads
+- [ ] SQLite persistence layer for event history
+- [ ] Discord / Slack notification dispatcher
+
 ## Architecture Flow
