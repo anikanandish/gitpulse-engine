@@ -60,6 +60,7 @@ python test_webhook.py
 
 - Python 3.10+
 - Git
+- `pip` package manager
 
 ### Installation
 
