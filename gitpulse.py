@@ -15,6 +15,8 @@ logging.basicConfig(
 
 app = FastAPI(title="GitPulse Webhook Engine")
 
+import db
+
 # Webhook secret key configuration (from environment)
 WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET") or os.getenv("WEBHOOK_SECRET")
 
@@ -36,13 +38,9 @@ def verify_signature(payload_body: bytes, signature_header: str | None) -> bool:
     return hmac.compare_digest(expected_signature, received_signature)
 
 
-# In-memory telemetry counter
-telemetry_data = {
-    "total_events": 0,
-    "pushes": 0,
-    "pull_requests": 0,
-    "repositories": {}
-}
+# Database and persistent telemetry initialization
+db.init_db()
+telemetry_data = db.load_metrics()
 
 @app.get("/")
 def home():
@@ -53,7 +51,8 @@ def home():
         "endpoints": {
             "webhook": "/webhook",
             "metrics": "/metrics",
-            "reset_metrics": "/metrics/reset"
+            "reset_metrics": "/metrics/reset",
+            "events": "/events"
         }
     }
 
@@ -65,12 +64,26 @@ def get_metrics():
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
+@app.get("/events")
+def get_events(limit: int = 20):
+    events = db.get_recent_events(limit=limit)
+    return {
+        "events": events,
+        "count": len(events),
+        "limit": limit
+    }
+
 # --- METRICS RESET ROUTE ---
 @app.post("/metrics/reset")
 def reset_metrics():
-    telemetry_data["total_events"] = 0
-    telemetry_data["pushes"] = 0
-    telemetry_data["pull_requests"] = 0
+    global telemetry_data
+    db.reset_db()
+    telemetry_data = {
+        "total_events": 0,
+        "pushes": 0,
+        "pull_requests": 0,
+        "repositories": {}
+    }
     logging.info("Telemetry metrics reset to zero")
     return {"message": "Telemetry metrics reset successfully", "telemetry": telemetry_data}
 
