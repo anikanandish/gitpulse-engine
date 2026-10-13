@@ -1,8 +1,10 @@
-#TODO: Add signature verification for security
-
 from datetime import datetime, timezone
+import hashlib
+import hmac
+import json
 import logging
-from fastapi import FastAPI, Request
+import os
+from fastapi import FastAPI, HTTPException, Request, status
 
 # Configure file logging
 logging.basicConfig(
@@ -12,6 +14,27 @@ logging.basicConfig(
 )
 
 app = FastAPI(title="GitPulse Webhook Engine")
+
+# Webhook secret key configuration (from environment)
+WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET") or os.getenv("WEBHOOK_SECRET")
+
+
+def verify_signature(payload_body: bytes, signature_header: str | None) -> bool:
+    """Validate X-Hub-Signature-256 against raw request payload using HMAC SHA-256."""
+    if not WEBHOOK_SECRET:
+        return True
+    if not signature_header or not signature_header.startswith("sha256="):
+        return False
+
+    expected_signature = hmac.new(
+        WEBHOOK_SECRET.encode("utf-8"),
+        payload_body,
+        hashlib.sha256
+    ).hexdigest()
+
+    received_signature = signature_header[len("sha256="):]
+    return hmac.compare_digest(expected_signature, received_signature)
+
 
 # In-memory telemetry counter
 telemetry_data = {
@@ -53,11 +76,26 @@ def reset_metrics():
 
 @app.post("/webhook")
 async def receive_github_webhook(request: Request):
+    payload_body = await request.body()
     github_signature = request.headers.get("X-Hub-Signature-256")
-    if not github_signature:
-        logging.warning("Received webhook without X-Hub-Signature-256 header")
 
-    payload = await request.json()
+    if WEBHOOK_SECRET:
+        if not github_signature or not verify_signature(payload_body, github_signature):
+            logging.warning("Rejected webhook: invalid or missing HMAC signature")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or missing X-Hub-Signature-256 signature"
+            )
+    elif not github_signature:
+        logging.warning("Received webhook without X-Hub-Signature-256 header (WEBHOOK_SECRET not set)")
+
+    try:
+        payload = json.loads(payload_body) if payload_body else {}
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid JSON payload"
+        )
     event_type = request.headers.get("X-GitHub-Event", "unknown")
     
     # Increment total event counter
