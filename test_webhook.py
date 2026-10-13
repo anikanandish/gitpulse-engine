@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import json
 import os
 import sys
@@ -23,6 +25,11 @@ def send_test_webhook(event_type="push", host="http://127.0.0.1:8000"):
         "Content-Type": "application/json",
         "X-GitHub-Event": event_type,
     }
+
+    secret = os.getenv("GITHUB_WEBHOOK_SECRET") or os.getenv("WEBHOOK_SECRET")
+    if secret:
+        sig = hmac.new(secret.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
+        headers["X-Hub-Signature-256"] = f"sha256={sig}"
 
     url = f"{host.rstrip('/')}/webhook"
     req = urllib.request.Request(
