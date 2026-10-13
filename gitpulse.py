@@ -15,6 +15,8 @@ logging.basicConfig(
 
 app = FastAPI(title="GitPulse Webhook Engine")
 
+import db
+
 # Webhook secret key configuration (from environment)
 WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET") or os.getenv("WEBHOOK_SECRET")
 
@@ -36,13 +38,9 @@ def verify_signature(payload_body: bytes, signature_header: str | None) -> bool:
     return hmac.compare_digest(expected_signature, received_signature)
 
 
-# In-memory telemetry counter
-telemetry_data = {
-    "total_events": 0,
-    "pushes": 0,
-    "pull_requests": 0,
-    "repositories": {}
-}
+# Database and persistent telemetry initialization
+db.init_db()
+telemetry_data = db.load_metrics()
 
 @app.get("/")
 def home():
@@ -53,7 +51,8 @@ def home():
         "endpoints": {
             "webhook": "/webhook",
             "metrics": "/metrics",
-            "reset_metrics": "/metrics/reset"
+            "reset_metrics": "/metrics/reset",
+            "events": "/events"
         }
     }
 
@@ -65,12 +64,26 @@ def get_metrics():
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
+@app.get("/events")
+def get_events(limit: int = 20):
+    events = db.get_recent_events(limit=limit)
+    return {
+        "events": events,
+        "count": len(events),
+        "limit": limit
+    }
+
 # --- METRICS RESET ROUTE ---
 @app.post("/metrics/reset")
 def reset_metrics():
-    telemetry_data["total_events"] = 0
-    telemetry_data["pushes"] = 0
-    telemetry_data["pull_requests"] = 0
+    global telemetry_data
+    db.reset_db()
+    telemetry_data = {
+        "total_events": 0,
+        "pushes": 0,
+        "pull_requests": 0,
+        "repositories": {}
+    }
     logging.info("Telemetry metrics reset to zero")
     return {"message": "Telemetry metrics reset successfully", "telemetry": telemetry_data}
 
@@ -108,12 +121,16 @@ async def receive_github_webhook(request: Request):
     print(f" RECEIVED GITHUB EVENT: {event_type.upper()}")
     print("=" * 45)
     
+    summary = f"GitHub event {event_type}"
+    repo = payload.get("repository", {}).get("name", "Unknown") if isinstance(payload.get("repository"), dict) else "Unknown"
+    sender = payload.get("sender", {}).get("login", "Unknown") if isinstance(payload.get("sender"), dict) else "Unknown"
+
     if event_type == "push":
         telemetry_data["pushes"] += 1
-        pusher = payload.get("pusher", {}).get("name", "Unknown")
-        repo = payload.get("repository", {}).get("name", "Unknown")
+        pusher = payload.get("pusher", {}).get("name", sender)
         commits = payload.get("commits", [])
         commit_count = len(commits)
+        summary = f"Push with {commit_count} commits by {pusher}"
         if repo not in telemetry_data["repositories"]:
             telemetry_data["repositories"][repo] = {"pushes": 0, "pull_requests": 0}
         telemetry_data["repositories"][repo]["pushes"] += 1
@@ -128,20 +145,29 @@ async def receive_github_webhook(request: Request):
             
     elif event_type == "pull_request":
         telemetry_data["pull_requests"] += 1
-        repo = payload.get("repository", {}).get("name", "Unknown")
         if repo not in telemetry_data["repositories"]:
             telemetry_data["repositories"][repo] = {"pushes": 0, "pull_requests": 0}
         telemetry_data["repositories"][repo]["pull_requests"] += 1
         action = payload.get("action", "")
         pr_title = payload.get("pull_request", {}).get("title", "")
-        author = payload.get("sender", {}).get("login", "")
+        author = payload.get("sender", {}).get("login", sender)
+        summary = f"PR '{pr_title}' ({action}) by {author}"
         logging.info(f"PR '{pr_title}' ({action}) by {author}")
         print(f" Action: {action}")
         print(f" PR Title: {pr_title}")
         print(f" Author: {author}")
-        
+
+    event_id = db.save_event(
+        event_type=event_type,
+        repository=repo,
+        sender=sender,
+        summary=summary,
+        payload=payload
+    )
+
     return {
         "status": "success",
         "event": event_type,
+        "event_id": event_id,
         "recorded_events_total": telemetry_data["total_events"]
     }
