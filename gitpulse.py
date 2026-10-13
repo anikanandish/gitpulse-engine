@@ -1,8 +1,7 @@
 #TODO: Add signature verification for security
 
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
-from time import timezone
 from fastapi import FastAPI, Request
 
 # Configure file logging
@@ -107,7 +106,4 @@ async def receive_github_webhook(request: Request):
         "status": "success",
         "event": event_type,
         "recorded_events_total": telemetry_data["total_events"]
-    }
-
-
-######edit telemetry reset route to be a POST request instead of GET request
+    }
