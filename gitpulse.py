@@ -1,8 +1,7 @@
 #TODO: Add signature verification for security
 
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
-from time import timezone
 from fastapi import FastAPI, Request
 
 # Configure file logging
