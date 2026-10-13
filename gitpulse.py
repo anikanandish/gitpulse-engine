@@ -16,6 +16,7 @@ logging.basicConfig(
 app = FastAPI(title="GitPulse Webhook Engine")
 
 import db
+import notifier
 
 # Webhook secret key configuration (from environment)
 WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET") or os.getenv("WEBHOOK_SECRET")
