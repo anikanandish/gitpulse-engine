@@ -10,6 +10,9 @@ def send_test_webhook(event_type="push", host="http://127.0.0.1:8000"):
     fixture_map = {
         "push": "tests/sample_push.json",
         "pull_request": "tests/sample_pull_request.json",
+        "issues": "tests/sample_issues.json",
+        "workflow_run": "tests/sample_workflow_run.json",
+        "release": "tests/sample_release.json",
     }
     
     fixture_path = fixture_map.get(event_type, f"tests/sample_{event_type}.json")

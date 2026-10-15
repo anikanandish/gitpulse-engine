@@ -1,0 +1,18 @@
+{
+  "action": "opened",
+  "issue": {
+    "number": 42,
+    "title": "Add support for CI/CD workflow telemetry",
+    "state": "open",
+    "user": {
+      "login": "octocat"
+    }
+  },
+  "repository": {
+    "name": "gitpulse-engine",
+    "full_name": "anikanandish/gitpulse-engine"
+  },
+  "sender": {
+    "login": "octocat"
+  }
+}

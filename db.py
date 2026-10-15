@@ -78,10 +78,21 @@ def load_metrics(db_path: str = DB_FILE) -> Dict[str, Any]:
         cursor.execute("SELECT COUNT(*) FROM events WHERE event_type = 'pull_request'")
         pull_requests = cursor.fetchone()[0]
 
+        cursor.execute("SELECT COUNT(*) FROM events WHERE event_type = 'issues'")
+        issues = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(*) FROM events WHERE event_type = 'workflow_run'")
+        workflow_runs = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(*) FROM events WHERE event_type = 'release'")
+        releases = cursor.fetchone()[0]
+
         cursor.execute("""
             SELECT repository,
                    SUM(CASE WHEN event_type = 'push' THEN 1 ELSE 0 END) as push_count,
-                   SUM(CASE WHEN event_type = 'pull_request' THEN 1 ELSE 0 END) as pr_count
+                   SUM(CASE WHEN event_type = 'pull_request' THEN 1 ELSE 0 END) as pr_count,
+                   SUM(CASE WHEN event_type = 'issues' THEN 1 ELSE 0 END) as issue_count,
+                   SUM(CASE WHEN event_type = 'workflow_run' THEN 1 ELSE 0 END) as workflow_count
             FROM events
             WHERE repository != 'Unknown'
             GROUP BY repository
@@ -90,13 +101,18 @@ def load_metrics(db_path: str = DB_FILE) -> Dict[str, Any]:
         for row in cursor.fetchall():
             repositories[row["repository"]] = {
                 "pushes": row["push_count"],
-                "pull_requests": row["pr_count"]
+                "pull_requests": row["pr_count"],
+                "issues": row["issue_count"],
+                "workflow_runs": row["workflow_count"]
             }
 
         return {
             "total_events": total_events,
             "pushes": pushes,
             "pull_requests": pull_requests,
+            "issues": issues,
+            "workflow_runs": workflow_runs,
+            "releases": releases,
             "repositories": repositories
         }
 

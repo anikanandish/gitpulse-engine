@@ -1,0 +1,16 @@
+{
+  "action": "published",
+  "release": {
+    "tag_name": "v1.0.0",
+    "name": "GitPulse Engine v1.0.0",
+    "prerelease": false,
+    "draft": false
+  },
+  "repository": {
+    "name": "gitpulse-engine",
+    "full_name": "anikanandish/gitpulse-engine"
+  },
+  "sender": {
+    "login": "anikanandish"
+  }
+}

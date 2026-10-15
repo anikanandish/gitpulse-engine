@@ -83,6 +83,9 @@ def reset_metrics():
         "total_events": 0,
         "pushes": 0,
         "pull_requests": 0,
+        "issues": 0,
+        "workflow_runs": 0,
+        "releases": 0,
         "repositories": {}
     }
     logging.info("Telemetry metrics reset to zero")
@@ -145,10 +148,10 @@ async def receive_github_webhook(request: Request):
             print(f"   - {c.get('message')}")
             
     elif event_type == "pull_request":
-        telemetry_data["pull_requests"] += 1
+        telemetry_data["pull_requests"] = telemetry_data.get("pull_requests", 0) + 1
         if repo not in telemetry_data["repositories"]:
-            telemetry_data["repositories"][repo] = {"pushes": 0, "pull_requests": 0}
-        telemetry_data["repositories"][repo]["pull_requests"] += 1
+            telemetry_data["repositories"][repo] = {"pushes": 0, "pull_requests": 0, "issues": 0, "workflow_runs": 0}
+        telemetry_data["repositories"][repo]["pull_requests"] = telemetry_data["repositories"][repo].get("pull_requests", 0) + 1
         action = payload.get("action", "")
         pr_title = payload.get("pull_request", {}).get("title", "")
         author = payload.get("sender", {}).get("login", sender)
@@ -157,6 +160,47 @@ async def receive_github_webhook(request: Request):
         print(f" Action: {action}")
         print(f" PR Title: {pr_title}")
         print(f" Author: {author}")
+
+    elif event_type == "issues":
+        telemetry_data["issues"] = telemetry_data.get("issues", 0) + 1
+        if repo not in telemetry_data["repositories"]:
+            telemetry_data["repositories"][repo] = {"pushes": 0, "pull_requests": 0, "issues": 0, "workflow_runs": 0}
+        telemetry_data["repositories"][repo]["issues"] = telemetry_data["repositories"][repo].get("issues", 0) + 1
+        action = payload.get("action", "")
+        issue_title = payload.get("issue", {}).get("title", "")
+        issue_num = payload.get("issue", {}).get("number", "")
+        summary = f"Issue #{issue_num} '{issue_title}' ({action}) by {sender}"
+        logging.info(summary)
+        print(f" Action: {action}")
+        print(f" Issue: #{issue_num} {issue_title}")
+
+    elif event_type == "workflow_run":
+        telemetry_data["workflow_runs"] = telemetry_data.get("workflow_runs", 0) + 1
+        if repo not in telemetry_data["repositories"]:
+            telemetry_data["repositories"][repo] = {"pushes": 0, "pull_requests": 0, "issues": 0, "workflow_runs": 0}
+        telemetry_data["repositories"][repo]["workflow_runs"] = telemetry_data["repositories"][repo].get("workflow_runs", 0) + 1
+        wf_name = payload.get("workflow_run", {}).get("name", "Unknown Workflow")
+        wf_conclusion = payload.get("workflow_run", {}).get("conclusion") or payload.get("workflow_run", {}).get("status", "running")
+        branch = payload.get("workflow_run", {}).get("head_branch", "unknown")
+        summary = f"Workflow '{wf_name}' [{str(wf_conclusion).upper()}] on branch {branch}"
+        logging.info(summary)
+        print(f" Workflow: {wf_name}")
+        print(f" Status: {wf_conclusion}")
+        print(f" Branch: {branch}")
+
+    elif event_type == "release":
+        telemetry_data["releases"] = telemetry_data.get("releases", 0) + 1
+        tag = payload.get("release", {}).get("tag_name", "unversioned")
+        action = payload.get("action", "published")
+        summary = f"Release {tag} ({action}) by {sender}"
+        logging.info(summary)
+        print(f" Release: {tag} ({action})")
+
+    elif event_type == "ping":
+        zen = payload.get("zen", "Keep it logically awesome.")
+        summary = f"GitHub webhook ping (zen: {zen})"
+        logging.info(summary)
+        print(f" Ping Zen: {zen}")
 
     event_id = db.save_event(
         event_type=event_type,

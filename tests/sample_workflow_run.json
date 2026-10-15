@@ -1,0 +1,18 @@
+{
+  "action": "completed",
+  "workflow_run": {
+    "id": 10293847,
+    "name": "CI Test Suite",
+    "status": "completed",
+    "conclusion": "success",
+    "head_branch": "main",
+    "event": "push"
+  },
+  "repository": {
+    "name": "gitpulse-engine",
+    "full_name": "anikanandish/gitpulse-engine"
+  },
+  "sender": {
+    "login": "github-actions[bot]"
+  }
+}
