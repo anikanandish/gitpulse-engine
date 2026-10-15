@@ -6,6 +6,7 @@ import logging
 import os
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.responses import HTMLResponse
 
 # Configure file logging
 logging.basicConfig(
@@ -16,6 +17,7 @@ logging.basicConfig(
 
 app = FastAPI(title="GitPulse Webhook Engine")
 
+import dashboard
 import db
 import notifier
 
@@ -51,6 +53,7 @@ def home():
         "status": "healthy",
         "version": "0.1.0",
         "endpoints": {
+            "dashboard": "/dashboard",
             "webhook": "/webhook",
             "metrics": "/metrics",
             "reset_metrics": "/metrics/reset",
@@ -61,6 +64,11 @@ def home():
             "dlq_clear": "/dlq/clear"
         }
     }
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def view_dashboard():
+    """Render real-time telemetry dashboard UI."""
+    return HTMLResponse(content=dashboard.get_dashboard_html())
 
 @app.get("/metrics")
 def get_metrics():

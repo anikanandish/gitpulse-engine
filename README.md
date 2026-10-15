@@ -5,39 +5,47 @@
 ![SQLite](https://img.shields.io/badge/SQLite-3-003B57)
 ![License-MIT](https://img.shields.io/badge/License-MIT-yellow)
 
-> A lightweight, event-driven GitHub telemetry receiver, metric aggregator, and multi-channel notification dispatcher built with FastAPI.
+> A lightweight, event-driven GitHub telemetry receiver, metric aggregator, Dead-Letter Queue, and real-time dashboard built with FastAPI.
 
 ---
 
 ## Overview
 
-**GitPulse Engine** ingests, validates, stores, and analyzes live GitHub Webhook events in real time. It acts as an automated telemetry pipeline to track repository activity—including commit volume, unique authors, pull request statuses, and multi-repository metrics—with SQLite persistence and optional alert dispatching to Discord and Slack.
+**GitPulse Engine** ingests, validates, stores, and analyzes live GitHub Webhook events in real time. It acts as an automated telemetry pipeline to track repository activity—including commit volume, unique authors, pull requests, issue tracking, CI/CD workflow runs, and releases—with persistent SQLite storage, multi-channel alerts (Discord & Slack), Dead-Letter Queue (DLQ) support, and an interactive live web dashboard.
 
 ---
 
 ## Features
 
-- **Real-Time Webhook Processing**: Ingests asynchronous GitHub webhook payloads (`push`, `pull_request`, and workflow events).
-- **HMAC SHA-256 Signature Verification**: Cryptographically verifies incoming payloads via the `X-Hub-Signature-256` header using constant-time comparison.
-- **SQLite Persistence Layer**: Persists incoming events and restores telemetry metrics across service restarts.
-- **Multi-Channel Alert Dispatcher**: Dispatches instant notifications to Discord and Slack webhooks with non-blocking fail-safes.
-- **Live Metrics & History API**: Provides real-time event aggregation and queryable recent event history.
-- **Local Test Runner**: Built-in CLI test script with mock fixtures for testing payloads without external tunnels.
+- **Multi-Event Webhook Ingestion**: Supports `push`, `pull_request`, `issues`, `workflow_run`, `release`, and `ping` GitHub events.
+- **HMAC SHA-256 Signature Verification**: Cryptographically verifies incoming payloads via the `X-Hub-Signature-256` header with constant-time comparison.
+- **SQLite Persistence Layer**: Persists full event histories and dynamically calculates telemetry metrics across service restarts.
+- **Advanced Query & Filtering API**: Filter event history by `event_type`, `repository`, `sender`, date ranges (`since`/`until`), with full pagination (`limit`/`offset`).
+- **Event Replay & Dead-Letter Queue (DLQ)**: Failed deliveries are captured in the DLQ, and any ingested event can be replayed on-demand via `POST /events/{id}/replay`.
+- **Live Interactive Web Dashboard**: Dark-themed, zero-dependency browser dashboard (`GET /dashboard`) with live auto-refreshing telemetry cards, stream table, and one-click event replays.
+- **Multi-Channel Alert Dispatcher**: Dispatches instant notifications to Discord and Slack webhooks with non-blocking error handling.
+- **Mock CLI Test Runner**: Built-in test script with sample JSON payloads (`push`, `pull_request`, `issues`, `workflow_run`, `release`) for testing without internet-facing tunnels.
 
 ---
 
 ## Architecture Flow
 
 ```mermaid
-flowchart LR
-    GH[GitHub Webhook / Mock Test] -->|POST /webhook + HMAC| API[FastAPI Engine]
+flowchart TD
+    GH[GitHub Webhooks / Test Runner] -->|POST /webhook + HMAC| API[FastAPI Engine]
     API -->|Verify Signature| SEC{HMAC Check}
-    SEC -->|Valid| DB[(SQLite Database)]
     SEC -->|Invalid| REJ[HTTP 401 Unauthorized]
+    SEC -->|Valid| ROUTE{Event Parser}
+    
+    ROUTE -->|Push / PR / Issues / Workflows / Releases| DB[(SQLite Database)]
     DB -->|Persist Event| MET[Telemetry Counter]
-    API -->|Dispatch Alert| NOTIF[Discord / Slack]
-    CLIENT[Client / Dashboard] -->|GET /metrics| MET
-    CLIENT -->|GET /events| DB
+    API -->|Async Alert| NOTIF[Discord / Slack]
+    NOTIF -->|On Error| DLQ[(Dead-Letter Queue)]
+    
+    CLIENT[Browser / Dashboard] -->|GET /dashboard| DASH[Live HTML Dashboard]
+    CLIENT -->|GET /metrics| MET
+    CLIENT -->|GET /events + Filters| DB
+    CLIENT -->|POST /events/:id/replay| API
 ```
 
 ---
@@ -46,10 +54,15 @@ flowchart LR
 
 | Method | Endpoint | Description |
 |---|---|---|
+| `GET` | `/dashboard` | Interactive real-time telemetry web dashboard UI |
 | `GET` | `/` | Health status, version, and route index |
-| `GET` | `/metrics` | Telemetry aggregates (total events, pushes, PRs, per-repo counts) |
-| `POST` | `/metrics/reset` | Resets in-memory metrics and clears SQLite event history |
-| `GET` | `/events?limit=20` | Retrieves recent persisted webhook events |
+| `GET` | `/metrics` | Telemetry aggregates (total events, pushes, PRs, issues, CI runs, releases, per-repo counts) |
+| `POST` | `/metrics/reset` | Resets metrics counters and clears SQLite event and DLQ history |
+| `GET` | `/events` | Filtered & paginated event history (`event_type`, `repository`, `sender`, `since`, `until`, `limit`, `offset`) |
+| `GET` | `/events/{event_id}` | Detailed event record with parsed JSON payload |
+| `POST` | `/events/{event_id}/replay` | Replay an existing event and re-trigger notifications |
+| `GET` | `/dlq` | Inspect failed notification deliveries and Dead-Letter Queue entries |
+| `POST` | `/dlq/clear` | Clear Dead-Letter Queue records |
 | `POST` | `/webhook` | Ingestion listener for GitHub webhook payloads |
 
 ---
@@ -126,10 +139,12 @@ uvicorn gitpulse:app --reload --port 8000
 ```
 
 Once running, access:
+- **Web Dashboard**: [http://127.0.0.1:8000/dashboard](http://127.0.0.1:8000/dashboard)
 - **API Root**: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
 - **Interactive Swagger Docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 - **Live Metrics**: [http://127.0.0.1:8000/metrics](http://127.0.0.1:8000/metrics)
 - **Event History**: [http://127.0.0.1:8000/events](http://127.0.0.1:8000/events)
+- **Dead-Letter Queue**: [http://127.0.0.1:8000/dlq](http://127.0.0.1:8000/dlq)
 
 ---
 
@@ -138,11 +153,20 @@ Once running, access:
 Simulate GitHub webhook events locally without an external tunnel:
 
 ```bash
-# Trigger a simulated push event
+# Push event
 python test_webhook.py push
 
-# Trigger a simulated pull request event
+# Pull Request event
 python test_webhook.py pull_request
+
+# Issues event
+python test_webhook.py issues
+
+# CI Workflow Run event
+python test_webhook.py workflow_run
+
+# Release event
+python test_webhook.py release
 ```
 
 ---
@@ -154,9 +178,11 @@ python test_webhook.py pull_request
 - [x] HMAC SHA-256 signature verification for webhook payloads
 - [x] SQLite persistence layer for event history
 - [x] Discord / Slack notification dispatcher
+- [x] Expanded event support (Issues, Workflows, Releases, Pings)
+- [x] Advanced Event Querying & Pagination API
+- [x] Webhook replay and Dead Letter Queue (DLQ)
+- [x] Real-time web dashboard UI
 - [ ] Redis / Celery queue for distributed high-load processing
-- [ ] Webhook replay and Dead Letter Queue (DLQ)
-- [ ] Real-time web dashboard UI
 
 ---
 
