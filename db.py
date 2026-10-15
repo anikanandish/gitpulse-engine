@@ -117,22 +117,56 @@ def load_metrics(db_path: str = DB_FILE) -> Dict[str, Any]:
         }
 
 
-def get_recent_events(limit: int = 20, db_path: str = DB_FILE) -> List[Dict[str, Any]]:
-    """Retrieve recent recorded events."""
+def get_events(
+    event_type: Optional[str] = None,
+    repository: Optional[str] = None,
+    sender: Optional[str] = None,
+    since: Optional[str] = None,
+    until: Optional[str] = None,
+    limit: int = 20,
+    offset: int = 0,
+    db_path: str = DB_FILE
+) -> Dict[str, Any]:
+    """Retrieve filtered, paginated events."""
     init_db(db_path)
+    conditions = []
+    params: List[Any] = []
+
+    if event_type:
+        conditions.append("event_type = ?")
+        params.append(event_type)
+    if repository:
+        conditions.append("repository = ?")
+        params.append(repository)
+    if sender:
+        conditions.append("sender = ?")
+        params.append(sender)
+    if since:
+        conditions.append("created_at >= ?")
+        params.append(since)
+    if until:
+        conditions.append("created_at <= ?")
+        params.append(until)
+
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
     with get_connection(db_path) as conn:
         cursor = conn.cursor()
+        cursor.execute(f"SELECT COUNT(*) FROM events {where_clause}", params)
+        total_matching = cursor.fetchone()[0]
+
         cursor.execute(
-            """
+            f"""
             SELECT id, event_type, repository, sender, summary, created_at
             FROM events
+            {where_clause}
             ORDER BY id DESC
-            LIMIT ?
+            LIMIT ? OFFSET ?
             """,
-            (limit,)
+            params + [limit, offset]
         )
         rows = cursor.fetchall()
-        return [
+        items = [
             {
                 "id": row["id"],
                 "event_type": row["event_type"],
@@ -143,6 +177,40 @@ def get_recent_events(limit: int = 20, db_path: str = DB_FILE) -> List[Dict[str,
             }
             for row in rows
         ]
+        return {
+            "total": total_matching,
+            "limit": limit,
+            "offset": offset,
+            "events": items
+        }
+
+
+def get_event_by_id(event_id: int, db_path: str = DB_FILE) -> Optional[Dict[str, Any]]:
+    """Retrieve a single event and its parsed payload by ID."""
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, event_type, repository, sender, summary, payload, created_at FROM events WHERE id = ?",
+            (event_id,)
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return {
+            "id": row["id"],
+            "event_type": row["event_type"],
+            "repository": row["repository"],
+            "sender": row["sender"],
+            "summary": row["summary"],
+            "payload": json.loads(row["payload"]) if row["payload"] else {},
+            "created_at": row["created_at"]
+        }
+
+
+def get_recent_events(limit: int = 20, db_path: str = DB_FILE) -> List[Dict[str, Any]]:
+    """Retrieve recent recorded events (convenience wrapper)."""
+    return get_events(limit=limit, db_path=db_path)["events"]
 
 
 def reset_db(db_path: str = DB_FILE) -> None:

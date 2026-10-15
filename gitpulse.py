@@ -4,6 +4,7 @@ import hmac
 import json
 import logging
 import os
+from typing import Optional
 from fastapi import FastAPI, HTTPException, Request, status
 
 # Configure file logging
@@ -53,7 +54,8 @@ def home():
             "webhook": "/webhook",
             "metrics": "/metrics",
             "reset_metrics": "/metrics/reset",
-            "events": "/events"
+            "events": "/events",
+            "event_detail": "/events/{event_id}"
         }
     }
 
@@ -66,13 +68,34 @@ def get_metrics():
     }
 
 @app.get("/events")
-def get_events(limit: int = 20):
-    events = db.get_recent_events(limit=limit)
-    return {
-        "events": events,
-        "count": len(events),
-        "limit": limit
-    }
+def get_events(
+    event_type: Optional[str] = None,
+    repository: Optional[str] = None,
+    sender: Optional[str] = None,
+    since: Optional[str] = None,
+    until: Optional[str] = None,
+    limit: int = 20,
+    offset: int = 0
+):
+    return db.get_events(
+        event_type=event_type,
+        repository=repository,
+        sender=sender,
+        since=since,
+        until=until,
+        limit=limit,
+        offset=offset
+    )
+
+@app.get("/events/{event_id}")
+def get_single_event(event_id: int):
+    event = db.get_event_by_id(event_id)
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Event {event_id} not found"
+        )
+    return event
 
 # --- METRICS RESET ROUTE ---
 @app.post("/metrics/reset")
