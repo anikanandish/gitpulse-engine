@@ -26,6 +26,16 @@ def _post_json(url: str, data: Dict[str, Any], timeout: float = 3.0) -> bool:
             return response.status in (200, 204)
     except Exception as e:
         logging.error(f"Failed to deliver notification to {url}: {e}")
+        try:
+            import db
+            db.record_dlq(
+                event_type="notification_failure",
+                payload={"target_url": url, "notification_payload": data},
+                error_reason=str(e),
+                channel="notification"
+            )
+        except Exception:
+            pass
         return False
 
 

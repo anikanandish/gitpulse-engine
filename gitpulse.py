@@ -55,7 +55,10 @@ def home():
             "metrics": "/metrics",
             "reset_metrics": "/metrics/reset",
             "events": "/events",
-            "event_detail": "/events/{event_id}"
+            "event_detail": "/events/{event_id}",
+            "replay_event": "/events/{event_id}/replay",
+            "dlq": "/dlq",
+            "dlq_clear": "/dlq/clear"
         }
     }
 
@@ -96,6 +99,47 @@ def get_single_event(event_id: int):
             detail=f"Event {event_id} not found"
         )
     return event
+
+@app.post("/events/{event_id}/replay")
+def replay_event(event_id: int):
+    """Replay an existing event and re-trigger notifications without re-ingesting."""
+    event = db.get_event_by_id(event_id)
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Event {event_id} not found"
+        )
+    notifier.dispatch_notifications(
+        event_type=event["event_type"],
+        summary=f"[REPLAY] {event['summary']}",
+        details={"repository": event["repository"], "sender": event["sender"], "event_id": event_id}
+    )
+    logging.info(f"Replayed event {event_id}: {event['summary']}")
+    return {
+        "status": "replayed",
+        "event_id": event_id,
+        "event_type": event["event_type"],
+        "summary": event["summary"]
+    }
+
+@app.get("/dlq")
+def get_dead_letter_queue(limit: int = 50):
+    """Inspect dead-letter queue records for failed event/notification deliveries."""
+    items = db.get_dlq_events(limit=limit)
+    return {
+        "dlq": items,
+        "count": len(items),
+        "limit": limit
+    }
+
+@app.post("/dlq/clear")
+def clear_dead_letter_queue():
+    """Clear all records from Dead-Letter Queue."""
+    deleted = db.clear_dlq()
+    return {
+        "message": f"Cleared {deleted} entries from Dead-Letter Queue",
+        "cleared_count": deleted
+    }
 
 # --- METRICS RESET ROUTE ---
 @app.post("/metrics/reset")

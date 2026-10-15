@@ -8,10 +8,15 @@ from typing import Any, Dict, List, Optional
 DB_FILE = os.getenv("GITPULSE_DB_FILE", "gitpulse.db")
 
 
+def get_db_path(db_path: Optional[str] = None) -> str:
+    """Resolve active database path dynamically."""
+    return db_path or DB_FILE
+
+
 @contextmanager
-def get_connection(db_path: str = DB_FILE):
+def get_connection(db_path: Optional[str] = None):
     """Context manager for SQLite connections that ensures proper closure."""
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(get_db_path(db_path))
     conn.row_factory = sqlite3.Row
     try:
         yield conn
@@ -19,7 +24,7 @@ def get_connection(db_path: str = DB_FILE):
         conn.close()
 
 
-def init_db(db_path: str = DB_FILE) -> None:
+def init_db(db_path: Optional[str] = None) -> None:
     """Initialize database tables and indexes."""
     with get_connection(db_path) as conn:
         conn.execute("""
@@ -33,8 +38,20 @@ def init_db(db_path: str = DB_FILE) -> None:
                 created_at TEXT NOT NULL
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS dlq_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id INTEGER,
+                event_type TEXT NOT NULL,
+                channel TEXT NOT NULL,
+                error_reason TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_events_repo ON events(repository)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_dlq_type ON dlq_events(event_type)")
         conn.commit()
 
 
@@ -214,8 +231,76 @@ def get_recent_events(limit: int = 20, db_path: str = DB_FILE) -> List[Dict[str,
 
 
 def reset_db(db_path: str = DB_FILE) -> None:
-    """Clear all events from database."""
+    """Clear all events and DLQ entries from database."""
     init_db(db_path)
     with get_connection(db_path) as conn:
         conn.execute("DELETE FROM events")
+        conn.execute("DELETE FROM dlq_events")
         conn.commit()
+
+
+def record_dlq(
+    event_type: str,
+    payload: Dict[str, Any],
+    error_reason: str,
+    channel: str = "general",
+    event_id: Optional[int] = None,
+    created_at: Optional[str] = None,
+    db_path: str = DB_FILE
+) -> int:
+    """Record an unhandled or failed delivery event to the Dead-Letter Queue."""
+    init_db(db_path)
+    if created_at is None:
+        created_at = datetime.now(timezone.utc).isoformat()
+    payload_json = json.dumps(payload)
+    with get_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO dlq_events (event_id, event_type, channel, error_reason, payload, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (event_id, event_type, channel, error_reason, payload_json, created_at)
+        )
+        conn.commit()
+        return cursor.lastrowid
+
+
+def get_dlq_events(limit: int = 50, db_path: str = DB_FILE) -> List[Dict[str, Any]]:
+    """Retrieve items from the Dead-Letter Queue."""
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, event_id, event_type, channel, error_reason, payload, created_at
+            FROM dlq_events
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (limit,)
+        )
+        rows = cursor.fetchall()
+        return [
+            {
+                "id": row["id"],
+                "event_id": row["event_id"],
+                "event_type": row["event_type"],
+                "channel": row["channel"],
+                "error_reason": row["error_reason"],
+                "payload": json.loads(row["payload"]) if row["payload"] else {},
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
+
+def clear_dlq(db_path: str = DB_FILE) -> int:
+    """Clear all records from Dead-Letter Queue."""
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM dlq_events")
+        deleted = cursor.rowcount
+        conn.commit()
+        return deleted
