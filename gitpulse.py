@@ -6,7 +6,7 @@ import logging
 import os
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Request, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 # Configure file logging
 logging.basicConfig(
@@ -66,6 +66,7 @@ def home():
             "metrics": "/metrics",
             "reset_metrics": "/metrics/reset",
             "events": "/events",
+            "events_export": "/events/export?format=json|csv",
             "event_detail": "/events/{event_id}",
             "replay_event": "/events/{event_id}/replay",
             "dlq": "/dlq",

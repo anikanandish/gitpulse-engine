@@ -1,5 +1,7 @@
 from contextlib import contextmanager
+import csv
 from datetime import datetime, timezone
+import io
 import json
 import os
 import sqlite3
@@ -325,4 +327,30 @@ def check_health(db_path: Optional[str] = None) -> Dict[str, Any]:
             "database": "unhealthy",
             "error": str(e)
         }
+
+
+def export_events_csv(
+    event_type: Optional[str] = None,
+    repository: Optional[str] = None,
+    db_path: str = DB_FILE
+) -> str:
+    """Export stored events as RFC 4180 compliant CSV string."""
+    init_db(db_path)
+    events_data = get_events(event_type=event_type, repository=repository, limit=10000, db_path=db_path)
+    items = events_data.get("items", [])
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["id", "event_type", "repository", "sender", "summary", "created_at"])
+    for item in items:
+        writer.writerow([
+            item.get("id"),
+            item.get("event_type"),
+            item.get("repository"),
+            item.get("sender"),
+            item.get("summary"),
+            item.get("created_at")
+        ])
+    return output.getvalue()
+
 
