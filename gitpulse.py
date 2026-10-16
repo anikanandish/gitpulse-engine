@@ -6,7 +6,7 @@ import logging
 import os
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Request, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 # Configure file logging
 logging.basicConfig(
@@ -66,6 +66,7 @@ def home():
             "metrics": "/metrics",
             "reset_metrics": "/metrics/reset",
             "events": "/events",
+            "events_export": "/events/export?format=json|csv",
             "event_detail": "/events/{event_id}",
             "replay_event": "/events/{event_id}/replay",
             "dlq": "/dlq",
@@ -122,6 +123,36 @@ def get_events(
         limit=limit,
         offset=offset
     )
+
+
+@app.get("/events/export")
+def export_events(
+    format: str = "json",
+    event_type: Optional[str] = None,
+    repository: Optional[str] = None
+):
+    """Export stored webhook events in CSV or JSON format."""
+    format_lower = format.lower().strip()
+    if format_lower == "csv":
+        csv_data = db.export_events_csv(event_type=event_type, repository=repository)
+        return Response(
+            content=csv_data,
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=gitpulse-events.csv"}
+        )
+    elif format_lower == "json":
+        data = db.get_events(event_type=event_type, repository=repository, limit=10000)
+        return {
+            "export_format": "json",
+            "total_count": data.get("total", 0),
+            "events": data.get("events", [])
+        }
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported format '{format}'. Supported formats: csv, json."
+        )
+
 
 @app.get("/events/{event_id}")
 def get_single_event(event_id: int):
