@@ -45,6 +45,13 @@ def verify_signature(payload_body: bytes, signature_header: str | None) -> bool:
 # Database and persistent telemetry initialization
 db.init_db()
 telemetry_data = db.load_metrics()
+SERVER_START_TIME = datetime.now(timezone.utc)
+
+
+def get_uptime_seconds() -> float:
+    """Calculate process uptime in seconds."""
+    return round((datetime.now(timezone.utc) - SERVER_START_TIME).total_seconds(), 2)
+
 
 @app.get("/")
 def home():
@@ -53,6 +60,7 @@ def home():
         "status": "healthy",
         "version": "0.1.0",
         "endpoints": {
+            "health": "/health",
             "dashboard": "/dashboard",
             "webhook": "/webhook",
             "metrics": "/metrics",
@@ -64,6 +72,23 @@ def home():
             "dlq_clear": "/dlq/clear"
         }
     }
+
+
+@app.get("/health")
+def health_check():
+    """System health check, uptime, and database connectivity status."""
+    uptime_sec = get_uptime_seconds()
+    db_status = db.check_health()
+    is_healthy = db_status.get("database") == "connected"
+    return {
+        "status": "healthy" if is_healthy else "degraded",
+        "app": "GitPulse Engine",
+        "version": "0.1.0",
+        "uptime_seconds": uptime_sec,
+        "database": db_status,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def view_dashboard():
