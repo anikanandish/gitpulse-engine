@@ -23,6 +23,7 @@ import notifier
 
 # Webhook secret key configuration (from environment)
 WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET") or os.getenv("WEBHOOK_SECRET")
+MAX_PAYLOAD_SIZE = int(os.getenv("MAX_PAYLOAD_SIZE", 2 * 1024 * 1024))  # 2MB default max
 
 
 def verify_signature(payload_body: bytes, signature_header: str | None) -> bool:
