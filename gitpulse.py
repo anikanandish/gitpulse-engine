@@ -6,7 +6,7 @@ import logging
 import os
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Request, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 # Configure file logging
 logging.basicConfig(
