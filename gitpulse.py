@@ -23,6 +23,7 @@ import notifier
 
 # Webhook secret key configuration (from environment)
 WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET") or os.getenv("WEBHOOK_SECRET")
+MAX_PAYLOAD_SIZE = int(os.getenv("MAX_PAYLOAD_SIZE", 2 * 1024 * 1024))  # 2MB default max
 
 
 def verify_signature(payload_body: bytes, signature_header: str | None) -> bool:
@@ -225,11 +226,30 @@ def reset_metrics():
 @app.post("/webhook")
 async def receive_github_webhook(request: Request):
     payload_body = await request.body()
+    payload_size = len(payload_body)
+
+    if payload_size > MAX_PAYLOAD_SIZE:
+        logging.warning(f"Rejected webhook: payload size ({payload_size} bytes) exceeds limit ({MAX_PAYLOAD_SIZE} bytes)")
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Payload size exceeds maximum allowed limit of {MAX_PAYLOAD_SIZE} bytes"
+        )
+
+    if not payload_body or not payload_body.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Payload body cannot be empty"
+        )
+
     github_signature = request.headers.get("X-Hub-Signature-256")
+    delivery_id = request.headers.get("X-GitHub-Delivery")
+    event_type = request.headers.get("X-GitHub-Event", "unknown")
+    client_host = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("User-Agent", "unknown")
 
     if WEBHOOK_SECRET:
         if not github_signature or not verify_signature(payload_body, github_signature):
-            logging.warning("Rejected webhook: invalid or missing HMAC signature")
+            logging.warning(f"Rejected webhook from {client_host}: invalid or missing HMAC signature")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid or missing X-Hub-Signature-256 signature"
@@ -238,19 +258,20 @@ async def receive_github_webhook(request: Request):
         logging.warning("Received webhook without X-Hub-Signature-256 header (WEBHOOK_SECRET not set)")
 
     try:
-        payload = json.loads(payload_body) if payload_body else {}
+        payload = json.loads(payload_body)
     except json.JSONDecodeError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid JSON payload"
         )
-    event_type = request.headers.get("X-GitHub-Event", "unknown")
-    
+
     # Increment total event counter
     telemetry_data["total_events"] += 1
     
     # Log incoming event type to events.log
-    logging.info(f"Incoming GitHub event: {event_type}")
+    logging.info(
+        f"Incoming GitHub event: {event_type} | Delivery: {delivery_id or 'none'} | Client: {client_host} | Agent: {user_agent}"
+    )
 
     print("\n" + "=" * 45)
     print(f" RECEIVED GITHUB EVENT: {event_type.upper()}")
@@ -347,9 +368,12 @@ async def receive_github_webhook(request: Request):
         details={"repository": repo, "sender": sender, "event_id": event_id}
     )
 
-    return {
+    response_data = {
         "status": "success",
         "event": event_type,
         "event_id": event_id,
         "recorded_events_total": telemetry_data["total_events"]
-    }
+    }
+    if delivery_id:
+        response_data["delivery_id"] = delivery_id
+    return response_data
