@@ -55,15 +55,18 @@ flowchart TD
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/dashboard` | Interactive real-time telemetry web dashboard UI |
-| `GET` | `/` | Health status, version, and route index |
+| `GET` | `/` | Service info and endpoint index |
+| `GET` | `/health` | Health status, system uptime, and database connectivity check |
 | `GET` | `/metrics` | Telemetry aggregates (total events, pushes, PRs, issues, CI runs, releases, per-repo counts) |
 | `POST` | `/metrics/reset` | Resets metrics counters and clears SQLite event and DLQ history |
 | `GET` | `/events` | Filtered & paginated event history (`event_type`, `repository`, `sender`, `since`, `until`, `limit`, `offset`) |
+| `GET` | `/events/export` | Export event history in CSV or JSON format (`?format=csv` or `?format=json`) |
 | `GET` | `/events/{event_id}` | Detailed event record with parsed JSON payload |
 | `POST` | `/events/{event_id}/replay` | Replay an existing event and re-trigger notifications |
 | `GET` | `/dlq` | Inspect failed notification deliveries and Dead-Letter Queue entries |
 | `POST` | `/dlq/clear` | Clear Dead-Letter Queue records |
 | `POST` | `/webhook` | Ingestion listener for GitHub webhook payloads |
+
 
 ---
 
@@ -128,23 +131,34 @@ flowchart TD
 | `GITPULSE_DB_FILE` | `gitpulse.db` | Path to SQLite database file |
 | `DISCORD_WEBHOOK_URL` | *(None)* | Optional Discord channel webhook URL for telemetry alerts |
 | `SLACK_WEBHOOK_URL` | *(None)* | Optional Slack incoming webhook URL for telemetry alerts |
+| `MAX_PAYLOAD_SIZE` | `2097152` (2MB) | Maximum allowed webhook request payload size in bytes |
 
 ---
 
 ## Running the Engine
 
+### Option A: Direct Local Execution
 Start the Uvicorn server:
 ```bash
 uvicorn gitpulse:app --reload --port 8000
 ```
 
+### Option B: Docker Compose Containerization
+Run GitPulse Engine inside an isolated container with persistent database volume:
+```bash
+docker compose up -d --build
+```
+
 Once running, access:
 - **Web Dashboard**: [http://127.0.0.1:8000/dashboard](http://127.0.0.1:8000/dashboard)
 - **API Root**: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
+- **Health Check**: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
 - **Interactive Swagger Docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 - **Live Metrics**: [http://127.0.0.1:8000/metrics](http://127.0.0.1:8000/metrics)
 - **Event History**: [http://127.0.0.1:8000/events](http://127.0.0.1:8000/events)
+- **Export Data**: [http://127.0.0.1:8000/events/export?format=csv](http://127.0.0.1:8000/events/export?format=csv)
 - **Dead-Letter Queue**: [http://127.0.0.1:8000/dlq](http://127.0.0.1:8000/dlq)
+
 
 ---
 
@@ -182,7 +196,12 @@ python test_webhook.py release
 - [x] Advanced Event Querying & Pagination API
 - [x] Webhook replay and Dead Letter Queue (DLQ)
 - [x] Real-time web dashboard UI
+- [x] Automated health check & system uptime tracking (`GET /health`)
+- [x] Event history export in CSV and JSON formats (`GET /events/export`)
+- [x] Ingestion security guards (payload size limits, delivery ID audit trail)
+- [x] Docker & Docker Compose containerization
 - [ ] Redis / Celery queue for distributed high-load processing
+
 
 ---
 
