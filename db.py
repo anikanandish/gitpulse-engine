@@ -304,3 +304,25 @@ def clear_dlq(db_path: str = DB_FILE) -> int:
         deleted = cursor.rowcount
         conn.commit()
         return deleted
+
+
+def check_health(db_path: Optional[str] = None) -> Dict[str, Any]:
+    """Verify SQLite database connectivity and return basic stats."""
+    try:
+        init_db(db_path)
+        with get_connection(db_path) as conn:
+            cur = conn.execute("SELECT COUNT(*) FROM events")
+            total_events = cur.fetchone()[0]
+            cur = conn.execute("SELECT COUNT(*) FROM dlq_events")
+            total_dlq = cur.fetchone()[0]
+            return {
+                "database": "connected",
+                "events_count": total_events,
+                "dlq_count": total_dlq
+            }
+    except Exception as e:
+        return {
+            "database": "unhealthy",
+            "error": str(e)
+        }
+
