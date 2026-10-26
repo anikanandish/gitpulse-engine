@@ -64,7 +64,7 @@ def save_event(
     summary: str,
     payload: Dict[str, Any],
     created_at: Optional[str] = None,
-    db_path: str = DB_FILE
+    db_path: Optional[str] = None
 ) -> int:
     """Persist an event to the database and return its new row ID."""
     if created_at is None:
@@ -83,7 +83,7 @@ def save_event(
         return cursor.lastrowid
 
 
-def load_metrics(db_path: str = DB_FILE) -> Dict[str, Any]:
+def load_metrics(db_path: Optional[str] = None) -> Dict[str, Any]:
     """Calculate aggregated telemetry metrics from persisted event records."""
     init_db(db_path)
     with get_connection(db_path) as conn:
@@ -144,7 +144,7 @@ def get_events(
     until: Optional[str] = None,
     limit: int = 20,
     offset: int = 0,
-    db_path: str = DB_FILE
+    db_path: Optional[str] = None
 ) -> Dict[str, Any]:
     """Retrieve filtered, paginated events."""
     init_db(db_path)
@@ -204,7 +204,7 @@ def get_events(
         }
 
 
-def get_event_by_id(event_id: int, db_path: str = DB_FILE) -> Optional[Dict[str, Any]]:
+def get_event_by_id(event_id: int, db_path: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """Retrieve a single event and its parsed payload by ID."""
     init_db(db_path)
     with get_connection(db_path) as conn:
@@ -227,12 +227,12 @@ def get_event_by_id(event_id: int, db_path: str = DB_FILE) -> Optional[Dict[str,
         }
 
 
-def get_recent_events(limit: int = 20, db_path: str = DB_FILE) -> List[Dict[str, Any]]:
+def get_recent_events(limit: int = 20, db_path: Optional[str] = None) -> List[Dict[str, Any]]:
     """Retrieve recent recorded events (convenience wrapper)."""
     return get_events(limit=limit, db_path=db_path)["events"]
 
 
-def reset_db(db_path: str = DB_FILE) -> None:
+def reset_db(db_path: Optional[str] = None) -> None:
     """Clear all events and DLQ entries from database."""
     init_db(db_path)
     with get_connection(db_path) as conn:
@@ -248,7 +248,7 @@ def record_dlq(
     channel: str = "general",
     event_id: Optional[int] = None,
     created_at: Optional[str] = None,
-    db_path: str = DB_FILE
+    db_path: Optional[str] = None
 ) -> int:
     """Record an unhandled or failed delivery event to the Dead-Letter Queue."""
     init_db(db_path)
@@ -268,7 +268,7 @@ def record_dlq(
         return cursor.lastrowid
 
 
-def get_dlq_events(limit: int = 50, db_path: str = DB_FILE) -> List[Dict[str, Any]]:
+def get_dlq_events(limit: int = 50, db_path: Optional[str] = None) -> List[Dict[str, Any]]:
     """Retrieve items from the Dead-Letter Queue."""
     init_db(db_path)
     with get_connection(db_path) as conn:
@@ -297,7 +297,7 @@ def get_dlq_events(limit: int = 50, db_path: str = DB_FILE) -> List[Dict[str, An
         ]
 
 
-def clear_dlq(db_path: str = DB_FILE) -> int:
+def clear_dlq(db_path: Optional[str] = None) -> int:
     """Clear all records from Dead-Letter Queue."""
     init_db(db_path)
     with get_connection(db_path) as conn:
@@ -332,7 +332,7 @@ def check_health(db_path: Optional[str] = None) -> Dict[str, Any]:
 def export_events_csv(
     event_type: Optional[str] = None,
     repository: Optional[str] = None,
-    db_path: str = DB_FILE
+    db_path: Optional[str] = None
 ) -> str:
     """Export stored events as RFC 4180 compliant CSV string."""
     init_db(db_path)
@@ -354,7 +354,7 @@ def export_events_csv(
     return output.getvalue()
 
 
-def get_analytics_leaderboard(limit: int = 10, db_path: str = DB_FILE) -> Dict[str, Any]:
+def get_analytics_leaderboard(limit: int = 10, db_path: Optional[str] = None) -> Dict[str, Any]:
     """Retrieve top active repositories, top senders, and event breakdown."""
     init_db(db_path)
     with get_connection(db_path) as conn:
@@ -393,7 +393,7 @@ def get_analytics_leaderboard(limit: int = 10, db_path: str = DB_FILE) -> Dict[s
         }
 
 
-def search_events(query: str, limit: int = 20, db_path: str = DB_FILE) -> Dict[str, Any]:
+def search_events(query: str, limit: int = 20, db_path: Optional[str] = None) -> Dict[str, Any]:
     """Search stored events matching keyword across summary, repository, or sender."""
     init_db(db_path)
     pattern = f"%{query.strip()}%"
