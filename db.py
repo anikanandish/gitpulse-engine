@@ -393,4 +393,44 @@ def get_analytics_leaderboard(limit: int = 10, db_path: str = DB_FILE) -> Dict[s
         }
 
 
+def search_events(query: str, limit: int = 20, db_path: str = DB_FILE) -> Dict[str, Any]:
+    """Search stored events matching keyword across summary, repository, or sender."""
+    init_db(db_path)
+    pattern = f"%{query.strip()}%"
+    with get_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT COUNT(*) FROM events
+            WHERE summary LIKE ? OR repository LIKE ? OR sender LIKE ?
+        """, (pattern, pattern, pattern))
+        total_matching = cursor.fetchone()[0]
+
+        cursor.execute("""
+            SELECT id, event_type, repository, sender, summary, created_at
+            FROM events
+            WHERE summary LIKE ? OR repository LIKE ? OR sender LIKE ?
+            ORDER BY id DESC
+            LIMIT ?
+        """, (pattern, pattern, pattern, limit))
+        rows = cursor.fetchall()
+        items = [
+            {
+                "id": row["id"],
+                "event_type": row["event_type"],
+                "repository": row["repository"],
+                "sender": row["sender"],
+                "summary": row["summary"],
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+        return {
+            "query": query,
+            "total_matches": total_matching,
+            "limit": limit,
+            "results": items
+        }
+
+
+
 
