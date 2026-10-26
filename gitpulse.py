@@ -65,6 +65,7 @@ def home():
             "dashboard": "/dashboard",
             "webhook": "/webhook",
             "metrics": "/metrics",
+            "analytics_leaderboard": "/analytics/leaderboard",
             "reset_metrics": "/metrics/reset",
             "events": "/events",
             "events_export": "/events/export?format=json|csv",
