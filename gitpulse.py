@@ -65,6 +65,7 @@ def home():
             "dashboard": "/dashboard",
             "webhook": "/webhook",
             "metrics": "/metrics",
+            "analytics_leaderboard": "/analytics/leaderboard",
             "reset_metrics": "/metrics/reset",
             "events": "/events",
             "events_export": "/events/export?format=json|csv",
@@ -104,6 +105,19 @@ def get_metrics():
         "status": "recording",
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
+
+
+@app.get("/analytics/leaderboard")
+def get_analytics_leaderboard(limit: int = 10):
+    """Retrieve activity leaderboard across repositories and authors."""
+    analytics = db.get_analytics_leaderboard(limit=limit)
+    return {
+        "status": "success",
+        "limit": limit,
+        "analytics": analytics,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
 
 @app.get("/events")
 def get_events(
