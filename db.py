@@ -354,3 +354,43 @@ def export_events_csv(
     return output.getvalue()
 
 
+def get_analytics_leaderboard(limit: int = 10, db_path: str = DB_FILE) -> Dict[str, Any]:
+    """Retrieve top active repositories, top senders, and event breakdown."""
+    init_db(db_path)
+    with get_connection(db_path) as conn:
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT repository, COUNT(*) as count
+            FROM events
+            GROUP BY repository
+            ORDER BY count DESC
+            LIMIT ?
+        """, (limit,))
+        top_repos = [{"repository": row["repository"], "events_count": row["count"]} for row in cursor.fetchall()]
+
+        cursor.execute("""
+            SELECT sender, COUNT(*) as count
+            FROM events
+            GROUP BY sender
+            ORDER BY count DESC
+            LIMIT ?
+        """, (limit,))
+        top_senders = [{"sender": row["sender"], "events_count": row["count"]} for row in cursor.fetchall()]
+
+        cursor.execute("""
+            SELECT event_type, COUNT(*) as count
+            FROM events
+            GROUP BY event_type
+            ORDER BY count DESC
+        """)
+        event_types = [{"event_type": row["event_type"], "count": row["count"]} for row in cursor.fetchall()]
+
+        return {
+            "top_repositories": top_repos,
+            "top_senders": top_senders,
+            "event_type_distribution": event_types
+        }
+
+
+
