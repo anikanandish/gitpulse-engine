@@ -68,6 +68,7 @@ def home():
             "analytics_leaderboard": "/analytics/leaderboard",
             "reset_metrics": "/metrics/reset",
             "events": "/events",
+            "events_search": "/events/search?q={query}",
             "events_export": "/events/export?format=json|csv",
             "event_detail": "/events/{event_id}",
             "replay_event": "/events/{event_id}/replay",
@@ -167,6 +168,17 @@ def export_events(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unsupported format '{format}'. Supported formats: csv, json."
         )
+
+
+@app.get("/events/search")
+def search_events(q: str, limit: int = 20):
+    """Search events by keyword query across summary, repository, or sender."""
+    if not q or not q.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Query parameter 'q' must not be empty"
+        )
+    return db.search_events(query=q, limit=limit)
 
 
 @app.get("/events/{event_id}")
