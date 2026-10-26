@@ -58,8 +58,10 @@ flowchart TD
 | `GET` | `/` | Service info and endpoint index |
 | `GET` | `/health` | Health status, system uptime, and database connectivity check |
 | `GET` | `/metrics` | Telemetry aggregates (total events, pushes, PRs, issues, CI runs, releases, per-repo counts) |
+| `GET` | `/analytics/leaderboard` | Top repositories and authors ranked by activity volume |
 | `POST` | `/metrics/reset` | Resets metrics counters and clears SQLite event and DLQ history |
 | `GET` | `/events` | Filtered & paginated event history (`event_type`, `repository`, `sender`, `since`, `until`, `limit`, `offset`) |
+| `GET` | `/events/search` | Search event summaries, repositories, or authors by keyword (`?q=...`) |
 | `GET` | `/events/export` | Export event history in CSV or JSON format (`?format=csv` or `?format=json`) |
 | `GET` | `/events/{event_id}` | Detailed event record with parsed JSON payload |
 | `POST` | `/events/{event_id}/replay` | Replay an existing event and re-trigger notifications |
@@ -162,8 +164,15 @@ Once running, access:
 
 ---
 
-## Local Testing
+## Testing
 
+### Automated Unit Test Suite
+Run the test suite with Python's built-in `unittest`:
+```bash
+python -m unittest discover tests -p "test_*.py"
+```
+
+### Local Webhook Mock Runner
 Simulate GitHub webhook events locally without an external tunnel:
 
 ```bash
@@ -200,6 +209,10 @@ python test_webhook.py release
 - [x] Event history export in CSV and JSON formats (`GET /events/export`)
 - [x] Ingestion security guards (payload size limits, delivery ID audit trail)
 - [x] Docker & Docker Compose containerization
+- [x] Activity leaderboard analytics API (`GET /analytics/leaderboard`)
+- [x] Event keyword search across multiple fields (`GET /events/search`)
+- [x] Dispatcher delivery retry mechanism with exponential backoff
+- [x] Automated unit test suite & GitHub Actions CI pipeline
 - [ ] Redis / Celery queue for distributed high-load processing
 
 
