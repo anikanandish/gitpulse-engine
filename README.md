@@ -22,7 +22,7 @@
 - **SQLite Persistence Layer**: Persists full event histories and dynamically calculates telemetry metrics across service restarts.
 - **Advanced Query & Filtering API**: Filter event history by `event_type`, `repository`, `sender`, date ranges (`since`/`until`), with full pagination (`limit`/`offset`).
 - **Event Replay & Dead-Letter Queue (DLQ)**: Failed deliveries are captured in the DLQ, and any ingested event can be replayed on-demand via `POST /events/{id}/replay`.
-- **Live Interactive Web Dashboard**: Dark-themed, zero-dependency browser dashboard (`GET /dashboard`) with live auto-refreshing telemetry cards, stream table, and one-click event replays.
+- **Live Interactive Web Dashboard**: Dark-themed, zero-dependency browser dashboard (`GET /dashboard`) featuring live auto-refreshing telemetry cards, stream table, keyword search, event type filtering, activity leaderboards, payload inspector modal, DLQ viewer, and one-click event replays.
 - **Multi-Channel Alert Dispatcher**: Dispatches instant notifications to Discord and Slack webhooks with non-blocking error handling.
 - **Mock CLI Test Runner**: Built-in test script with sample JSON payloads (`push`, `pull_request`, `issues`, `workflow_run`, `release`) for testing without internet-facing tunnels.
 
@@ -204,7 +204,7 @@ python test_webhook.py release
 - [x] Expanded event support (Issues, Workflows, Releases, Pings)
 - [x] Advanced Event Querying & Pagination API
 - [x] Webhook replay and Dead Letter Queue (DLQ)
-- [x] Real-time web dashboard UI
+- [x] Real-time web dashboard UI (leaderboards, search/filter, payload inspection, DLQ manager, toast alerts)
 - [x] Automated health check & system uptime tracking (`GET /health`)
 - [x] Event history export in CSV and JSON formats (`GET /events/export`)
 - [x] Ingestion security guards (payload size limits, delivery ID audit trail)
