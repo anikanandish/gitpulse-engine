@@ -41,6 +41,15 @@ class GitPulseTestCase(unittest.TestCase):
         self.assertIn("uptime_seconds", data)
         self.assertEqual(data["database"]["database"], "connected")
 
+    def test_dashboard_endpoint(self):
+        response = self.client.get("/dashboard")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("text/html", response.headers["content-type"])
+        self.assertIn("GitPulse Engine", response.text)
+        self.assertIn("Active Repositories", response.text)
+        self.assertIn("Dead-Letter Queue", response.text)
+
+
     def test_metrics_endpoint(self):
         response = self.client.get("/metrics")
         self.assertEqual(response.status_code, 200)
